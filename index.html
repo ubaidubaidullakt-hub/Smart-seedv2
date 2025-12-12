@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Seed Moisture & Germination Meter</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<style>
+    body {
+        margin: 0;
+        background: #f4f4f4;
+        padding: 20px;
+        text-align: center;
+        font-family: Arial, sans-serif;
+    }
+    .card {
+        background: white;
+        padding: 20px;
+        margin: 15px auto;
+        width: 92%;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    .color-box {
+        height: 120px;
+        width: 120px;
+        margin: 10px auto;
+        border-radius: 15px;
+        transition: 0.5s;
+    }
+    .meter {
+        height: 20px;
+        width: 90%;
+        margin: 10px auto;
+        border-radius: 10px;
+        background: #ddd;
+    }
+    .meter-fill {
+        height: 100%;
+        width: 0%;
+        border-radius: 10px;
+        transition: 0.5s;
+        background: #00b050;
+    }
+    input[type=range] {
+        width: 90%;
+    }
+    button {
+        padding: 10px 20px;
+        margin-top: 10px;
+        font-size: 18px;
+        border: none;
+        border-radius: 12px;
+        background: #0077ff;
+        color: white;
+    }
+</style>
+</head>
+<body>
+
+<h1 id="title">Seed Moisture & Germination Meter</h1>
+
+<!-- LANGUAGE -->
+<div class="card">
+    <h3 id="chooseLang">Choose Language / भाषा चुनें / ഭാഷ തിരഞ്ഞെടുക്കുക</h3>
+    <select id="langSelect" onchange="updateLanguage()">
+        <option value="en">English</option>
+        <option value="hi">हिन्दी</option>
+        <option value="ml">മലയാളം</option>
+    </select>
+</div>
+
+<!-- SILICA LEVEL UI -->
+<div class="card">
+    <h3 id="silicaTitle">Silica Gel Moisture Indicator</h3>
+
+    <select id="silicaSelect" onchange="updateSilicaColor()">
+        <option value="dry">Dry</option>
+        <option value="ideal">Ideal Moisture</option>
+        <option value="medium">Medium Moisture</option>
+        <option value="high">High Moisture</option>
+        <option value="verywet">Very Wet</option>
+    </select>
+
+    <div id="colorBox" class="color-box"></div>
+</div>
+
+<!-- MOISTURE PERCENTAGE METER -->
+<div class="card">
+    <h3 id="moistureText">Seed Moisture Percentage</h3>
+
+    <input id="moistureSlider" type="range" min="0" max="30" value="10" oninput="updateMoistureMeter()">
+    
+    <p id="moistureValue">10%</p>
+
+    <div class="meter">
+        <div id="moistureBar" class="meter-fill"></div>
+    </div>
+</div>
+
+<!-- GERMINATION METER -->
+<div class="card">
+    <h3 id="germinationTitle">Germination Probability</h3>
+
+    <p id="germinationLabel">Medium</p>
+
+    <div class="meter">
+        <div id="germinationBar" class="meter-fill" style="background:#ff9800"></div>
+    </div>
+
+    <button onclick="speak()">🔊 Speak</button>
+</div>
+
+
+<script>
+/* MULTI-LANGUAGE TEXT */
+const text = {
+    en: {
+        title: "Seed Moisture & Germination Meter",
+        chooseLang: "Choose Language",
+        silicaTitle: "Silica Gel Moisture Indicator",
+        moistureText: "Seed Moisture Percentage",
+        germTitle: "Germination Probability",
+
+        speakDry: "Moisture level is very dry.",
+        speakIdeal: "Moisture level is ideal.",
+        speakMedium: "Medium moisture detected.",
+        speakHigh: "High moisture detected.",
+        speakVeryWet: "Very wet moisture. Risk of fungus.",
+
+        speakGermLow: "Germination chance is low.",
+        speakGermMedium: "Germination chance is medium.",
+        speakGermHigh: "Germination chance is high.",
+        speakGermVeryHigh: "Germination chance is very high."
+    },
+
+    hi: {
+        title: "बीज नमी और अंकुरण मीटर",
+        chooseLang: "भाषा चुनें",
+        silicaTitle: "सिलिका जेल नमी सूचक",
+        moistureText: "बीज की नमी प्रतिशत",
+        germTitle: "अंकुरण संभावना",
+
+        speakDry: "नमी स्तर बहुत सूखा है।",
+        speakIdeal: "नमी आदर्श स्तर पर है।",
+        speakMedium: "मध्यम नमी पाई गई।",
+        speakHigh: "उच्च नमी पाई गई।",
+        speakVeryWet: "बहुत अधिक नमी। फफूंदी का खतरा।",
+
+        speakGermLow: "अंकुरण की संभावना कम है।",
+        speakGermMedium: "अंकुरण की संभावना मध्यम है।",
+        speakGermHigh: "अंकुरण की संभावना अधिक है।",
+        speakGermVeryHigh: "अंकुरण की संभावना बहुत अधिक है।"
+    },
+
+    ml: {
+        title: "വിത്ത് ഈർപ്പം & മുളയ്ക്കൽ മീറ്റർ",
+        chooseLang: "ഭാഷ തിരഞ്ഞെടുക്കുക",
+        silicaTitle: "സിലിക്ക ജെൽ ഈർപ്പ് സൂചകം",
+        moistureText: "വിത്തിലെ ഈർപ്പ് ശതമാനം",
+        germTitle: "മുളയ്ക്കൽ സാധ്യത",
+
+        speakDry: "ഈർപ്പ് നില വളരെ വരണ്ടതാണ്.",
+        speakIdeal: "ഈർപ്പ് അനുയോജ്യമാണ്.",
+        speakMedium: "ഇടത്തരം ഈർപ്പ് കണ്ടെത്തി.",
+        speakHigh: "ഉയർന്ന ഈർപ്പ് കണ്ടെത്തി.",
+        speakVeryWet: "വളരെ കൂടുതൽ ഈർപ്പ്. പൂപ്പൽ അപകടം.",
+
+        speakGermLow: "മുളയ്ക്കൽ സാധ്യത കുറവാണ്.",
+        speakGermMedium: "മുളയ്ക്കൽ സാധ്യത മിതമാണ്.",
+        speakGermHigh: "മുളയ്ക്കൽ സാധ്യത കൂടുതലാണ്.",
+        speakGermVeryHigh: "മുളയ്ക്കൽ സാധ്യത വളരെ കൂടുതലാണ്."
+    }
+};
+
+/* LANGUAGE UPDATE */
+function updateLanguage() {
+    const L = text[langSelect.value];
+    document.getElementById("title").innerText = L.title;
+    document.getElementById("chooseLang").innerText = L.chooseLang;
+    document.getElementById("silicaTitle").innerText = L.silicaTitle;
+    document.getElementById("moistureText").innerText = L.moistureText;
+    document.getElementById("germinationTitle").innerText = L.germTitle;
+}
+
+/* SILICA COLOR */
+function updateSilicaColor() {
+    const c = document.getElementById("silicaSelect").value;
+    const box = document.getElementById("colorBox");
+
+    const colors = {
+        dry: "#00b050",
+        ideal: "#9acd32",
+        medium: "#ffd700",
+        high: "#cc7722",
+        verywet: "#654321"
+    };
+    box.style.background = colors[c];
+}
+
+/* MOISTURE METER */
+function updateMoistureMeter() {
+    const val = moistureSlider.value;
+    moistureValue.innerText = val + "%";
+    moistureBar.style.width = val + "%";
+
+    updateGermination(val);
+}
+
+/* GERMINATION METER */
+function updateGermination(val) {
+    let label = "";
+    let percent = 0;
+    let color = "";
+
+    if (val <= 8) {
+        label = "Low";
+        percent = 25;
+        color = "#e53935";
+    } else if (val <= 14) {
+        label = "Medium";
+        percent = 50;
+        color = "#ff9800";
+    } else if (val <= 20) {
+        label = "High";
+        percent = 75;
+        color = "#00bcd4";
+    } else {
+        label = "Very High";
+        percent = 100;
+        color = "#00b050";
+    }
+
+    germinationLabel.innerText = label;
+    germinationBar.style.width = percent + "%";
+    germinationBar.style.background = color;
+}
+
+/* SPEAK OUTPUT */
+function speak() {
+    const lang = langSelect.value;
+    const silicaVal = silicaSelect.value;
+    const moist = moistureSlider.value;
+
+    const L = text[lang];
+
+    let msg = "";
+
+    // silica moisture speech
+    if (silicaVal === "dry") msg = L.speakDry;
+    if (silicaVal === "ideal") msg = L.speakIdeal;
+    if (silicaVal === "medium") msg = L.speakMedium;
+    if (silicaVal === "high") msg = L.speakHigh;
+    if (silicaVal === "verywet") msg = L.speakVeryWet;
+
+    // germination speech
+    if (moist <= 8) msg += ". " + L.speakGermLow;
+    else if (moist <= 14) msg += ". " + L.speakGermMedium;
+    else if (moist <= 20) msg += ". " + L.speakGermHigh;
+    else msg += ". " + L.speakGermVeryHigh;
+
+    const speech = new SpeechSynthesisUtterance(msg);
+    speech.lang = lang === "en" ? "en-US" : lang === "hi" ? "hi-IN" : "ml-IN";
+
+    window.speechSynthesis.speak(speech);
+}
+</script>
+
+</body>
+</html>
