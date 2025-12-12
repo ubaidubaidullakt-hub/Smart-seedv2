@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Silica Gel Seed Scanner — Moisture & Germination</title>
+<style>
+  :root{
+    --card-bg:#fff;
+    --accent:#2b8a3e;
+    --muted:#666;
+    --glass: rgba(255,255,255,0.8);
+    --shadow: 0 6px 18px rgba(0,0,0,0.12);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    background: linear-gradient(180deg,#eef7f1 0%, #f7fbf9 100%);
+    color:#111;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    padding:14px;
+    text-align:center;
+  }
+
+  header{
+    background:var(--accent);
+    color:white;
+    padding:14px 12px;
+    border-radius:12px;
+    font-size:18px;
+    font-weight:700;
+    box-shadow:var(--shadow);
+  }
+
+  .top-row{
+    display:flex;
+    gap:8px;
+    justify-content:center;
+    margin:12px 0 8px;
+    flex-wrap:wrap;
+  }
+  .select, .btn {
+    padding:10px 12px;
+    border-radius:10px;
+    border:none;
+    font-size:15px;
+  }
+  .select { background:#fff; box-shadow:0 3px 8px rgba(0,0,0,0.06) }
+  .btn {
+    background:var(--accent);
+    color:white;
+    cursor:pointer;
+    box-shadow:0 6px 14px rgba(43,138,62,0.18);
+  }
+
+  .stage {
+    margin:12px auto;
+    width:100%;
+    max-width:980px;
+    display:grid;
+    grid-template-columns: 1fr 380px;
+    gap:12px;
+    align-items:start;
+  }
+  @media (max-width:840px){ .stage{ grid-template-columns: 1fr; } }
+
+  /* camera/card */
+  .card {
+    background:var(--card-bg);
+    border-radius:12px;
+    padding:12px;
+    box-shadow:var(--shadow);
+    text-align:left;
+  }
+
+  video, img#captured {
+    width:100%;
+    height:auto;
+    border-radius:10px;
+    background:#000;
+  }
+  .controls { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; justify-content:center; }
+
+  /* right column: results */
+  .results {
+    padding:14px;
+    text-align:center;
+  }
+  .color-preview {
+    width:110px; height:110px; border-radius:12px; border:3px solid #222; margin:12px auto;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.08);
+  }
+
+  .big {
+    font-size:20px;
+    font-weight:700;
+    margin-top:6px;
+  }
+  .muted { color:var(--muted); font-size:14px; }
+
+  /* meters */
+  .meter {
+    width:100%;
+    background:#eee;
+    border-radius:999px;
+    height:18px;
+    overflow:hidden;
+    margin-top:10px;
+  }
+  .meter-fill{
+    height:100%;
+    width:0%;
+    background:linear-gradient(90deg,#00b050,#9acd32);
+    transition:width .9s ease, background .5s ease;
+  }
+  .germ-fill{ background:linear-gradient(90deg,#f44336,#ff9800,#00b050); }
+
+  .guide {
+    margin-top:14px;
+    display:flex;
+    gap:10px;
+    flex-direction:column;
+  }
+  .guide-row{display:flex;gap:10px;align-items:center}
+  .guide-dot{ width:28px;height:28px;border-radius:50%;border:2px solid #111;display:inline-block; }
+
+  footer{
+    margin-top:16px;
+    font-size:13px;
+    color:#444;
+  }
+</style>
+</head>
+<body>
+
+<header id="hdr">Silica Gel Seed Scanner</header>
+
+<div class="top-row">
+  <select id="lang" class="select" onchange="updateLanguage()" title="Language">
+    <option value="en">English</option>
+    <option value="hi">हिन्दी (Hindi)</option>
+    <option value="ml">മലയാളം (Malayalam)</option>
+  </select>
+
+  <select id="seedType" class="select" title="Seed type">
+    <option>Paddy</option>
+    <option>Wheat</option>
+    <option>Ragi</option>
+    <option>Green Gram</option>
+    <option>Black Gram</option>
+    <option>Bengal Gram</option>
+    <option>Maize</option>
+    <option>Coconut</option>
+    <option>Groundnut</option>
+    <option>Sesame</option>
+    <option>Mustard</option>
+    <option>Sorghum</option>
+  </select>
+
+  <button class="btn" id="startBtn" onclick="startCamera()">Start Camera</button>
+  <button class="btn" id="captureBtn" onclick="capturePhoto()">Capture Photo</button>
+  <button class="btn" id="analyzeBtn" onclick="analyzeCaptured()" >Analyze</button>
+</div>
+
+<div class="stage">
+  <div class="card">
+    <div style="font-weight:700; font-size:16px">Camera / Capture</div>
+    <p class="muted" id="cameraHint">Allow camera permission and press Capture Photo. Use even lighting.</p>
+    <video id="camera" autoplay playsinline></video>
+    <img id="captured" style="display:none;margin-top:10px;border-radius:10px">
+    <div class="controls">
+      <button class="select" onclick="retake()" style="background:#fff">Retake</button>
+      <button class="select" onclick="downloadResult()" style="background:#fff">Download Result</button>
+    </div>
+  </div>
+
+  <div class="card results">
+    <div style="display:flex;flex-direction:column;align-items:center">
+      <div id="colorPreview" class="color-preview" title="Detected color"></div>
+      <div id="detectedLabel" class="big">—</div>
+      <div id="detectedHint" class="muted">—</div>
+    </div>
+
+    <div style="margin-top:12px;text-align:left">
+      <div style="display:flex;justify-content:space-between">
+        <div class="muted">Estimated Moisture</div><div id="moistVal" class="big">—</div>
+      </div>
+      <div class="meter" aria-hidden><div id="moistFill" class="meter-fill"></div></div>
+
+      <div style="display:flex;justify-content:space-between;margin-top:10px">
+        <div class="muted">Germination Chance</div><div id="germVal" class="big">—</div>
+      </div>
+      <div class="meter" aria-hidden><div id="germFill" class="meter-fill germ-fill"></div></div>
+    </div>
+
+    <div class="guide">
+      <div style="font-weight:700;margin-top:12px" id="guideTitle">Moisture Color Meaning</div>
+
+      <div class="guide-row"><span class="guide-dot" style="background:#00b050"></span><div id="dryText">Dry — Very low moisture, poor germination</div></div>
+      <div class="guide-row"><span class="guide-dot" style="background:#9acd32"></span><div id="idealText">Ideal — Best moisture, high germination</div></div>
+      <div class="guide-row"><span class="guide-dot" style="background:#ffd700"></span><div id="mediumText">Medium — Moisture rising</div></div>
+      <div class="guide-row"><span class="guide-dot" style="background:#cc7722"></span><div id="highText">High — Fungus risk</div></div>
+      <div class="guide-row"><span class="guide-dot" style="background:#654321"></span><div id="wetText">Very Wet — Spoilage risk</div></div>
+    </div>
+  </div>
+</div>
+
+<footer id="foot">Tip: use even daylight and keep silica indicator centered while taking photo for best results.</footer>
+
+<script>
+/* -------------------------
+  Color definitions (target)
+  ------------------------- */
+const targetColors = [
+  {nameKey:'dry', rgb:[0,176,80], colorHex:'#00b050', moisture:6, moistureRange:'0–8%', germ:20, labelEN:'Dry', labelHI:'बहुत सूखा', labelML:'വളരെ വരണ്ട്'},
+  {nameKey:'ideal', rgb:[154,205,50], colorHex:'#9acd32', moisture:12, moistureRange:'9–14%', germ:90, labelEN:'Ideal Moisture', labelHI:'आदर्श नमी', labelML:'ശരിയായ ഈർപ്പ്'},
+  {nameKey:'medium', rgb:[255,215,0], colorHex:'#ffd700', moisture:17, moistureRange:'15–20%', germ:60, labelEN:'Medium Moisture', labelHI:'मध्यम नमी', labelML:'ഇടത്തരം ഈർപ്പ്'},
+  {nameKey:'high', rgb:[204,119,34], colorHex:'#cc7722', moisture:23, moistureRange:'21–25%', germ:35, labelEN:'High Moisture', labelHI:'उच्च नमी', labelML:'ഉയർന്ന ഈർപ്പ്'},
+  {nameKey:'verywet', rgb:[101,67,33], colorHex:'#654321', moisture:28, moistureRange:'26–30%', germ:5, labelEN:'Very Wet', labelHI:'बहुत गीला', labelML:'വളരെ ഈർപ്പം'}
+];
+
+let lang = 'en';
+let stream = null;
+const video = document.getElementById('camera');
+const capturedImg = document.getElementById('captured');
+
+function updateLanguage(){
+  lang = document.getElementById('lang').value;
+  const texts = {
+    en: {
+      hdr:'Silica Gel Seed Scanner',
+      hint:'Allow camera and capture photo. Use even lighting.',
+      start:'Start Camera', capture:'Capture Photo', analyze:'Analyze',
+      guide:'Moisture Color Meaning',
+      dryT:'Dry — Very low moisture, poor germination',
+      idealT:'Ideal — Best moisture, high germination',
+      mediumT:'Medium — Moisture rising',
+      highT:'High — Fungus risk',
+      wetT:'Very Wet — Spoilage risk',
+      tip:'Tip: use even daylight and keep silica indicator centered while taking photo for best results.',
+      detectedPrefix:'Detected:',
+      btnDownload:'Download Result'
+    },
+    hi: {
+      hdr:'सिलिका जेल बीज स्कैनर',
+      hint:'कृपया कैमरा की अनुमति दें और फोटो लें। समान रोशनी का उपयोग करें।',
+      start:'कैमरा चालू करें', capture:'फोटो लें', analyze:'विश्लेषण करें',
+      guide:'नमी रंग संकेत',
+      dryT:'बहुत सूखा — कम अंकुरण',
+      idealT:'आदर्श — अच्छा अंकुरण',
+      mediumT:'मध्यम — नमी बढ़ रही है',
+      highT:'उच्च — फफूंदी का खतरा',
+      wetT:'बहुत गीला — खराब होने का खतरा',
+      tip:'सुझाव: बेहतर परिणाम के लिए समान प्रकाश में और सूचक केंद्र में रखें।',
+      detectedPrefix:'पाया गया: ',
+      btnDownload:'रिज़ल्ट डाउनलोड करें'
+    },
+    ml: {
+      hdr:'സിലിക്ക ജെൽ വിത്ത് സ്‌കാനർ',
+      hint:'ദയവായി ക്യാമറ അനുവദിക്കുക, ഫോട്ടോ എടുക്കുക. സമമായ വെളിച്ചം ഉപയോഗിക്കുക.',
+      start:'ക്യാമറ തുടങ്ങുക', capture:'ഫോട്ടോ എടുക്കുക', analyze:'വിശകലനം ചെയ്യൂ',
+      guide:'ഈർപ്പ് നിറ സൂചിക',
+      dryT:'വളരെ വരണ്ട് — കുറവ് മുളപ്പിക്കൽ',
+      idealT:'ആദർശം — മികച്ച മുളപ്പിക്കല്‍',
+      mediumT:'ഇടത്തരം — ഈർപ്പ് വർദ്ധിക്കുന്നു',
+      highT:'ഉയർന്ന — ഫംഗസ് സംഭവിക്കാം',
+      wetT:'വളരെ ഈർപ്പം — കേടാകാനുള്ള സാധ്യത',
+      tip:'രുചികരമായ ഫലത്തിനായി സമമായ വെളിച്ചത്തില്‍ സൂചകം കേന്ദ്രീകരിച്ച് എടുത്തു.',
+      detectedPrefix:'കണ്ടെടുത്തു: ',
+      btnDownload:'ഫലങ്ങൾ ഡൗൺലോഡ് ചെയ്യുക'
+    }
+  };
+
+  const t = texts[lang];
+  document.getElementById('hdr').innerText = t.hdr;
+  document.getElementById('cameraHint').innerText = t.hint;
+  document.getElementById('guideTitle').innerText = t.guide;
+  document.getElementById('dryText').innerText = t.dryT;
+  document.getElementById('idealText').innerText = t.idealT;
+  document.getElementById('mediumText').innerText = t.mediumT;
+  document.getElementById('highText').innerText = t.highT;
+  document.getElementById('wetText').innerText = t.wetT;
+  document.getElementById('foot').innerText = t.tip;
+}
+
+/* start camera (prefer rear) */
+async function startCamera(){
+  try {
+    if(stream){ stopStream(); }
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio:false });
+    video.srcObject = stream;
+    video.style.display = 'block';
+    capturedImg.style.display = 'none';
+    speakText( getText('hint') );
+  } catch(e){
+    alert(getText('hint') + '\n\n' + (e.message || e));
+  }
+}
+function stopStream(){
+  if(!stream) return;
+  stream.getTracks().forEach(t=>t.stop());
+  stream = null;
+}
+
+/* capture frame to image */
+function capturePhoto(){
+  if(!video || !video.videoWidth) {
+    alert(getText('hint'));
+    return;
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video,0,0);
+  const dataUrl = canvas.toDataURL('image/png');
+  capturedImg.src = dataUrl;
+  capturedImg.style.display = 'block';
+  video.style.display = 'none';
+  speakText( (lang==='en' ? 'Photo captured' : lang==='hi' ? 'फोटो कैप्चर हुआ' : 'ഫോട്ടോ എടുക്കി') );
+}
+
+/* analyze center area of captured image */
+function analyzeCaptured(){
+  if(!capturedImg.src) { alert(getText('hint')); return; }
+  const imgEl = capturedImg;
+  const canvas = document.createElement('canvas');
+  canvas.width = imgEl.naturalWidth || imgEl.width;
+  canvas.height = imgEl.naturalHeight || imgEl.height;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(imgEl,0,0,canvas.width,canvas.height);
+
+  // sample a central square region (size proportional)
+  const sampleSize = Math.max(10, Math.floor(Math.min(canvas.width, canvas.height) * 0.12));
+  const sx = Math.floor((canvas.width - sampleSize)/2);
+  const sy = Math.floor((canvas.height - sampleSize)/2);
+
+  const data = ctx.getImageData(sx, sy, sampleSize, sampleSize).data;
+  let r=0,g=0,b=0, count=0;
+  for(let i=0;i<data.length;i+=4){
+    r += data[i];
+    g += data[i+1];
+    b += data[i+2];
+    count++;
+  }
+  r = Math.round(r/count);
+  g = Math.round(g/count);
+  b = Math.round(b/count);
+
+  // show preview
+  const preview = document.getElementById('colorPreview');
+  preview.style.background = `rgb(${r},${g},${b})`;
+
+  // find nearest target color (Euclidean)
+  let best = null;
+  let bestD = 1e9;
+  targetColors.forEach(tc=>{
+    const dr = tc.rgb[0]-r;
+    const dg = tc.rgb[1]-g;
+    const db = tc.rgb[2]-b;
+    const d = dr*dr + dg*dg + db*db;
+    if(d < bestD){ bestD = d; best = tc; }
+  });
+
+  // show results
+  const labelEl = document.getElementById('detectedLabel');
+  const hintEl = document.getElementById('detectedHint');
+  const moistValEl = document.getElementById('moistVal');
+  const germValEl = document.getElementById('germVal');
+  const moistFill = document.getElementById('moistFill');
+  const germFill = document.getElementById('germFill');
+
+  // Map best to language labels
+  const detectedText = (lang==='en') ? best.labelEN : (lang==='hi' ? best.labelHI : best.labelML);
+  labelEl.innerText = detectedText;
+  hintEl.innerText = (lang==='en' ? `Approx moisture: ${best.moistureRange}` :
+                      lang==='hi' ? `अनुमानित नमी: ${best.moistureRange}` :
+                      `അനുമാനിച്ച ഈർപ്പ്: ${best.moistureRange}`);
+
+  // moisture percent (representative) and germination %
+  const moisturePercent = best.moisture; // representative
+  const germPercent = best.germ;
+
+  moistValEl.innerText = `${moisturePercent}% (${best.moistureRange})`;
+  germValEl.innerText = `${germPercent}%`;
+
+  // animate meters
+  moistFill.style.width = Math.min(100, (moisturePercent/30)*100) + '%';
+  moistFill.style.background = getMoistGradient(best);
+  germFill.style.width = Math.min(100, germPercent) + '%';
+
+  // speak result in chosen language (concise + values)
+  const speakMsg = generateSpeakMessage(best, moisturePercent, germPercent);
+  speakText(speakMsg);
+
+  // small beep
+  playBeep();
+}
+
+/* calculate a gradient for meter based on category */
+function getMoistGradient(category){
+  switch(category.nameKey){
+    case 'dry': return 'linear-gradient(90deg,#00b050,#66c28c)';
+    case 'ideal': return 'linear-gradient(90deg,#9acd32,#d4e88f)';
+    case 'medium': return 'linear-gradient(90deg,#ffd700,#ffe77a)';
+    case 'high': return 'linear-gradient(90deg,#cc7722,#e4a36e)';
+    case 'verywet': return 'linear-gradient(90deg,#654321,#8b6b55)';
+    default: return 'linear-gradient(90deg,#9acd32,#00b050)';
+  }
+}
+
+/* TTS helpers */
+function speakText(text){
+  if(!('speechSynthesis' in window)) return;
+  const msg = new SpeechSynthesisUtterance(text);
+  msg.lang = (lang==='hi' ? 'hi-IN' : (lang==='ml' ? 'ml-IN' : 'en-US'));
+  // prefer a slower rate for clarity
+  msg.rate = 0.95;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(msg);
+}
+
+function generateSpeakMessage(category, moist, germ){
+  if(lang==='en'){
+    return `${category.labelEN}. Estimated moisture ${moist} percent (${category.moistureRange}). Germination chance about ${germ} percent.`;
+  } else if(lang==='hi'){
+    // Hindi message (simple)
+    return `${category.labelHI}. अनुमानित नमी ${moist} प्रतिशत (${category.moistureRange}). अंकुरण संभावना लगभग ${germ} प्रतिशत।`;
+  } else {
+    return `${category.labelML}.ประมาณ ഇടപ്പു ${moist} ശതമാനം (${category.moistureRange}). മുളപ്പിക്കൽ സാധ്യത ഏകദേശം ${germ} ശതമാനം.`.replace('ประมาณ',''); // Malayalam text adjusted
+  }
+}
+
+/* small beep sound */
+function playBeep(){
+  try{
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.value = 700;
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.16);
+    o.start();
+    o.stop(ctx.currentTime + 0.17);
+  }catch(e){}
+}
+
+/* download result as simple PNG with details */
+function downloadResult(){
+  if(!capturedImg.src){
+    alert((lang==='en'?'Capture a photo first.': (lang==='hi'?'पहले फोटो लें।':'ദയവായി ആദ്യം ഫോട്ടോ എടുക്കുക.')));
+    return;
+  }
+  // create canvas, draw image + overlay text
+  const imgEl = capturedImg;
+  const c = document.createElement('canvas');
+  const w = imgEl.naturalWidth || imgEl.width || 800;
+  const h = imgEl.naturalHeight || imgEl.height || 600;
+  c.width = w; c.height = h + 180;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0,0,c.width,c.height);
+  ctx.drawImage(imgEl,0,0,w,h);
+  // read displayed values
+  const label = document.getElementById('detectedLabel').innerText || '';
+  const moist = document.getElementById('moistVal').innerText || '';
+  const germ = document.getElementById('germVal').innerText || '';
+  ctx.fillStyle = '#111';
+  ctx.font = '20px Arial';
+  ctx.fillText((lang==='en'?'Detected: ':'') + label, 12, h + 40);
+  ctx.fillText((lang==='en'?'Moisture: ':'') + moist, 12, h + 75);
+  ctx.fillText((lang==='en'?'Germination: ':'') + germ, 12, h + 110);
+  const a = document.createElement('a');
+  a.href = c.toDataURL('image/png');
+  a.download = 'seed-scan.png';
+  a.click();
+}
+
+/* small helpers */
+function getText(key){
+  const map = {
+    hint: (lang==='en'?'Allow camera and capture photo. Use even lighting.': (lang==='hi'?'कृपया कैमरा की अनुमति दें और फोटो लें। समान रोशनी का उपयोग करें।':'ദയവായി ക്യാമറ അനുവദിക്കുക, ഫോട്ടോ എടുക്കുക. സമമായ വെളിച്ചം ഉപയോഗിക്കുക.'))
+  };
+  return map[key] || '';
+}
+
+/* retake */
+function retake(){
+  capturedImg.style.display='none';
+  video.style.display='block';
+  document.getElementById('colorPreview').style.background='transparent';
+  document.getElementById('detectedLabel').innerText='—';
+  document.getElementById('detectedHint').innerText='—';
+  document.getElementById('moistVal').innerText='—';
+  document.getElementById('germVal').innerText='—';
+  document.getElementById('moistFill').style.width='0%';
+  document.getElementById('germFill').style.width='0%';
+}
+
+/* initialize language UI */
+updateLanguage();
+
+/* stop camera on page hide to free permissions */
+window.addEventListener('pagehide', ()=>{ stopStream(); });
+window.addEventListener('beforeunload', ()=>{ stopStream(); });
+
+</script>
+</body>
+</html>
